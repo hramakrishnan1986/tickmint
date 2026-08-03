@@ -1,0 +1,1 @@
+export default function NotFound(){return <main className="errorPage"><section className="errorBox"><div style={{fontSize:42}}>404</div><h1>This page is not in the journal</h1><p>The address may be outdated or typed incorrectly.</p><div><a className="primaryLg" href="/">Return home</a></div></section></main>}

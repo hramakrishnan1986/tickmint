@@ -1,0 +1,16 @@
+TICKMINT — MILESTONE 3D
+
+1. Open this folder in VS Code.
+2. Open a Command Prompt terminal.
+3. Run: npm install
+4. Run: npm run dev
+5. Open Chrome and visit: http://localhost:3000
+6. Click "View live demo" to test without Supabase.
+
+For real accounts:
+- Run supabase/schema.sql in a Supabase project.
+- Copy .env.example to .env.local.
+- Add your Supabase URL and anon key.
+- Restart npm run dev.
+
+Read DEPLOYMENT.md and QA-CHECKLIST.md before public launch.
