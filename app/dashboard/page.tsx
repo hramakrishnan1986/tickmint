@@ -1,18 +1,21 @@
-import { redirect } from "next/navigation";
-import { createClient } from "../../lib/supabase/server";
+function TickMintLogo({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`tickmintLogo ${compact ? "compact" : ""}`}>
+      <div className="logoIcon">
+        <img
+          src="/tickmint-icon.svg"
+          alt="TickMint"
+          width={compact ? 34 : 40}
+          height={compact ? 34 : 40}
+        />
+      </div>
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  // The main TickMint application already lives at app/page.tsx.
-  // It detects the authenticated session and opens the dashboard.
-  redirect("/");
+      {!compact && (
+        <div className="logoWordmark">
+          <span className="logoTick">Tick</span>
+          <span className="logoMint">Mint</span>
+        </div>
+      )}
+    </div>
+  );
 }

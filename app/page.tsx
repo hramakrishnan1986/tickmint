@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Activity, Award, Brain, ClipboardCheck, Clock3, Gauge, HeartPulse, ShieldCheck, BarChart3, Bell, BookOpen, CalendarDays, ChevronRight, CircleDollarSign, Download, LayoutDashboard, LogOut, Menu, Plus, Settings, Target, TrendingDown, TrendingUp, X, MessageSquare, LifeBuoy, FileText, RefreshCw } from 'lucide-react';
+import { Activity, Award, Brain, ClipboardCheck, Clock3, Gauge, HeartPulse, ShieldCheck, BarChart3, Bell, BookOpen, CalendarDays, ChevronDown, ChevronRight, Check, CircleDollarSign, Download, LayoutDashboard, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Palette, Plus, Search, Settings, Sun, Target, TrendingDown, TrendingUp, UserCircle, X, MessageSquare, LifeBuoy, FileText, RefreshCw, Zap } from 'lucide-react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from '../lib/supabase';
 import { sampleAccounts, sampleCapitalEntries, sampleTrades, sampleDailyReviews, CapitalEntry, Trade, TradingAccount, DailyReview } from '../lib/sampleData';
@@ -10,6 +10,7 @@ import './phase-2a-stabilization.css';
 
 type View = 'landing'|'login'|'dashboard'|'journal'|'accounts'|'capital'|'analytics'|'psychology'|'review'|'calendar'|'expiry'|'reports'|'achievements'|'feedback'|'settings';
 type AuthMode = 'login'|'signup'|'forgot';
+type ThemeMode = 'system'|'light'|'dark'|'midnight'|'trading';
 
 const money = (n:number) => `${n<0?'-':''}₹${Math.abs(Math.round(n)).toLocaleString('en-IN')}`;
 
@@ -62,6 +63,11 @@ export default function Home(){
   const [query,setQuery]=useState('');
   const [consent,setConsent]=useState(true);
   const [toast,setToast]=useState('');
+  const [theme,setTheme]=useState<ThemeMode>('system');
+  const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
+  const [commandOpen,setCommandOpen]=useState(false);
+  const [themeOpen,setThemeOpen]=useState(false);
+  const [profileOpen,setProfileOpen]=useState(false);
 
   useEffect(()=>{
     let mounted=true;
@@ -88,6 +94,51 @@ export default function Home(){
       else if(!demoMode){setTrades([]);setView('landing')}
     });
     return()=>{mounted=false;listener.subscription.unsubscribe()}
+  },[]);
+
+
+  useEffect(()=>{
+    const stored=(localStorage.getItem('tickmint_theme')||'system') as ThemeMode;
+    const collapsed=localStorage.getItem('tickmint_sidebar_collapsed')==='yes';
+    setTheme(stored);
+    setSidebarCollapsed(collapsed);
+  },[]);
+
+  useEffect(()=>{
+    const root=document.documentElement;
+    const apply=()=>{
+      const resolved=theme==='system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')
+        : theme;
+      root.dataset.theme=resolved;
+      root.style.colorScheme=resolved==='light'?'light':'dark';
+    };
+    apply();
+    localStorage.setItem('tickmint_theme',theme);
+    const media=window.matchMedia('(prefers-color-scheme: dark)');
+    const listener=()=>theme==='system'&&apply();
+    media.addEventListener?.('change',listener);
+    return()=>media.removeEventListener?.('change',listener);
+  },[theme]);
+
+  useEffect(()=>{
+    localStorage.setItem('tickmint_sidebar_collapsed',sidebarCollapsed?'yes':'no');
+  },[sidebarCollapsed]);
+
+  useEffect(()=>{
+    const onKey=(event:KeyboardEvent)=>{
+      if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+      if(event.key==='Escape'){
+        setCommandOpen(false);
+        setThemeOpen(false);
+        setProfileOpen(false);
+      }
+    };
+    window.addEventListener('keydown',onKey);
+    return()=>window.removeEventListener('keydown',onKey);
   },[]);
 
   async function loadCloudData(currentUser:User){
@@ -216,15 +267,34 @@ export default function Home(){
     {label:'Intelligence',items:nav.slice(4,9)},
     {label:'Management',items:nav.slice(9)}
   ] as const;
-  return <div className="appShell">
-    <aside className={menu?'sidebar open':'sidebar'}>
-      <div className="brand"><TickMintLogo/><small>Trading performance OS</small></div>
-      <button className="newTrade" onClick={openTradeEntry}><Plus size={18}/> Log a trade</button>
-      <nav className="navGroups">{navGroups.map(group=><div className="navGroup" key={group.label}><span className="navLabel">{group.label}</span>{group.items.map(([id,label,Icon])=><button key={id} className={view===id?'nav active':'nav'} onClick={()=>{setView(id);setMenu(false);track('view_opened',{view:id})}}><Icon size={18} strokeWidth={1.8}/><span>{label}</span></button>)}</div>)}</nav>
-      <div className="sidebarFoot"><div className="avatar">{profileName.charAt(0).toUpperCase()}</div><div><b>{profileName}</b><small><i className={demoMode?'statusDot demo':'statusDot'}></i>{demoMode?'Demo workspace':'Cloud secured'}</small></div><button aria-label="Sign out" title="Sign out" onClick={logout}><LogOut size={16}/></button></div>
+  return <div className={`appShell ${sidebarCollapsed?'sidebarIsCollapsed':''}`}>
+    <aside className={`${menu?'sidebar open':'sidebar'} ${sidebarCollapsed?'collapsed':''}`}>
+      <div className="brand"><TickMintLogo compact={sidebarCollapsed}/><small>Trading performance OS</small><button className="collapseBtn" aria-label={sidebarCollapsed?'Expand sidebar':'Collapse sidebar'} onClick={()=>setSidebarCollapsed(v=>!v)}>{sidebarCollapsed?<PanelLeftOpen size={16}/>:<PanelLeftClose size={16}/>}</button></div>
+      <button className="newTrade" onClick={openTradeEntry}><Plus size={18}/><span>Log a trade</span></button>
+      <nav className="navGroups">{navGroups.map(group=><div className="navGroup" key={group.label}><span className="navLabel">{group.label}</span>{group.items.map(([id,label,Icon])=><button key={id} className={view===id?'nav active':'nav'} onClick={()=>{setView(id);setMenu(false);track('view_opened',{view:id})}}><Icon size={18} strokeWidth={1.8}/><span className="navText">{label}</span></button>)}</div>)}</nav>
+      <div className="sidebarFoot"><div className="avatar">{profileName.charAt(0).toUpperCase()}</div><div className="sidebarProfileText"><b>{profileName}</b><small><i className={demoMode?'statusDot demo':'statusDot'}></i>{demoMode?'Demo workspace':'Cloud secured'}</small></div><button aria-label="Sign out" title="Sign out" onClick={logout}><LogOut size={16}/></button></div>
     </aside>
     <main className="main">
-      <header className="topbar"><button className="menuBtn" onClick={()=>setMenu(!menu)}><Menu/></button><div><span className="crumb">Workspace /</span> <b>{nav.find(n=>n[0]===view)?.[1]}</b></div><div className="topActions"><span className={`syncState ${syncing?'busy':'ok'}`}>{syncing?'Syncing…':demoMode?'Demo data':'Cloud synced'}</span><button title="Notifications" onClick={()=>notify('You are all caught up.') }><Bell size={18}/></button><button className="primarySm" onClick={openTradeEntry}><Plus size={16}/> Log trade</button></div></header>
+      <header className="topbar">
+        <div className="topbarLeft">
+          <button className="menuBtn" aria-label="Open navigation" onClick={()=>setMenu(!menu)}><Menu size={19}/></button>
+          <div className="breadcrumb"><span className="crumb">Workspace</span><ChevronRight size={13}/><b>{nav.find(n=>n[0]===view)?.[1]}</b></div>
+        </div>
+        <button className="commandTrigger" onClick={()=>setCommandOpen(true)}><Search size={16}/><span>Search workspace</span><kbd>Ctrl K</kbd></button>
+        <div className="topActions">
+          <span className={`syncState ${syncing?'busy':'ok'}`}>{syncing?'Syncing…':demoMode?'Demo data':'Cloud synced'}</span>
+          <div className="topPopoverWrap">
+            <button className="iconButton" aria-label="Choose appearance" title="Appearance" onClick={()=>{setThemeOpen(v=>!v);setProfileOpen(false)}}><Palette size={17}/></button>
+            {themeOpen&&<ThemeMenu theme={theme} setTheme={(next:ThemeMode)=>{setTheme(next);setThemeOpen(false)}}/>}
+          </div>
+          <button className="iconButton" aria-label="Notifications" title="Notifications" onClick={()=>notify('You are all caught up.')}><Bell size={17}/><span className="notificationDot"></span></button>
+          <div className="topPopoverWrap">
+            <button className="profileTrigger" onClick={()=>{setProfileOpen(v=>!v);setThemeOpen(false)}}><span>{profileName.charAt(0).toUpperCase()}</span><ChevronDown size={14}/></button>
+            {profileOpen&&<div className="profileMenu"><div className="profileMenuHead"><div className="avatar">{profileName.charAt(0).toUpperCase()}</div><div><b>{profileName}</b><small>{user?.email||'Demo workspace'}</small></div></div><button onClick={()=>{setView('settings');setProfileOpen(false)}}><UserCircle size={16}/> Profile & settings</button><button onClick={logout}><LogOut size={16}/> Sign out</button></div>}
+          </div>
+          <button className="primarySm" onClick={openTradeEntry}><Plus size={16}/> Log trade</button>
+        </div>
+      </header>
       <div className="content">
         {error&&<div className="errorBanner"><b>Unable to sync:</b> {error}<button onClick={()=>setError('')}>×</button></div>}
         {!supabaseConfigured&&!demoMode&&<div className="setupBanner">Add Supabase keys to <code>.env.local</code> to enable real accounts and cloud data.</div>}
@@ -251,17 +321,53 @@ export default function Home(){
         {view==='reports'&&<Reports trades={trades} stats={stats} instrumentData={instrumentData}/>} 
         {view==='achievements'&&<Achievements trades={trades} discipline={stats.discipline} reviews={reviews}/>} 
         {view==='feedback'&&<FeedbackView demoMode={demoMode} userId={user?.id||''} email={user?.email||''} onSent={()=>notify('Thank you — feedback submitted.')} />}
-        {view==='settings'&&<SettingsView name={profileName} currency={currency} startingCapital={startingCapital} demoMode={demoMode} userId={user?.id||''} accounts={accounts} trades={trades} capitalEntries={capitalEntries} reviews={reviews} onSaved={(next:any)=>{setProfileName(next.name);setCurrency(next.currency);setStartingCapital(next.startingCapital)}}/>}
+        {view==='settings'&&<SettingsView name={profileName} currency={currency} startingCapital={startingCapital} demoMode={demoMode} userId={user?.id||''} accounts={accounts} trades={trades} capitalEntries={capitalEntries} reviews={reviews} theme={theme} setTheme={setTheme} onSaved={(next:any)=>{setProfileName(next.name);setCurrency(next.currency);setStartingCapital(next.startingCapital)}}/>}
       </div>
     </main>
     {!consent&&<ConsentBanner onAccept={()=>{localStorage.setItem('jiq_analytics_consent','yes');setConsent(true);notify('Anonymous product analytics enabled.')}} onDecline={()=>{localStorage.setItem('jiq_analytics_consent','no');setConsent(true)}}/>}
     {toast&&<div className="toast">{toast}</div>}
-    {modal&&<TradeModal trade={editing} accounts={accounts} onClose={()=>setModal(false)} onSave={saveTrade}/>} 
+    {modal&&<TradeModal trade={editing} accounts={accounts} onClose={()=>setModal(false)} onSave={saveTrade}/>}
+    {commandOpen&&<CommandPalette currentView={view} onClose={()=>setCommandOpen(false)} onNavigate={(next:View)=>{setView(next);setCommandOpen(false)}} onTrade={()=>{setCommandOpen(false);openTradeEntry()}}/>}
   </div>
 }
 
 
-function TickMintLogo({compact=false}:{compact?:boolean}){return <div className={`tickmintLogo ${compact?'compact':''}`}><img src={compact?'/tickmint-icon.svg':'/tickmint-logo.svg'} width={compact?42:190} height={compact?42:52} alt="TickMint trading journal"/></div>}
+function TickMintLogo({compact=false}:{compact?:boolean}){
+  return <div className={`tickmintLogo ${compact?'compact':''}`} aria-label="TickMint">
+    <span className="logoMark" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i>
+    </span>
+    {!compact&&<span className="logoWordmark"><strong>Tick</strong><em>Mint</em></span>}
+  </div>
+}
+
+function ThemeMenu({theme,setTheme}:{theme:ThemeMode;setTheme:(theme:ThemeMode)=>void}){
+  const options:[ThemeMode,string,any][]=[
+    ['system','System',Zap],
+    ['light','Pearl',Sun],
+    ['dark','Graphite',Moon],
+    ['midnight','Midnight',ShieldCheck],
+    ['trading','Trading Dark',Activity]
+  ];
+  return <div className="themeMenu popoverMenu"><div className="popoverTitle">Appearance</div>{options.map(([id,label,Icon])=><button key={id} className={theme===id?'selected':''} onClick={()=>setTheme(id)}><Icon size={16}/><span>{label}</span>{theme===id&&<Check size={15}/>}</button>)}</div>
+}
+
+function CommandPalette({currentView,onClose,onNavigate,onTrade}:{currentView:View;onClose:()=>void;onNavigate:(view:View)=>void;onTrade:()=>void}){
+  const [search,setSearch]=useState('');
+  const commands:{id:string;label:string;hint:string;icon:any;view?:View;action?:()=>void}[]=[
+    {id:'trade',label:'Log a new trade',hint:'Create a complete journal entry',icon:Plus,action:onTrade},
+    {id:'dashboard',label:'Open dashboard',hint:'Portfolio overview and KPIs',icon:LayoutDashboard,view:'dashboard'},
+    {id:'journal',label:'Open trade journal',hint:'Search and manage trades',icon:BookOpen,view:'journal'},
+    {id:'accounts',label:'Open trading accounts',hint:'Manage brokers and capital',icon:CircleDollarSign,view:'accounts'},
+    {id:'analytics',label:'Open analytics',hint:'Instrument, strategy and direction edge',icon:BarChart3,view:'analytics'},
+    {id:'review',label:'Open daily review',hint:'Complete your behavioural review',icon:ClipboardCheck,view:'review'},
+    {id:'settings',label:'Open settings',hint:'Profile, guardrails and backup',icon:Settings,view:'settings'}
+  ];
+  const filtered=commands.filter(c=>`${c.label} ${c.hint}`.toLowerCase().includes(search.toLowerCase()));
+  useEffect(()=>{document.getElementById('tickmint-command-search')?.focus()},[]);
+  return <div className="commandOverlay" onMouseDown={onClose}><div className="commandPalette" onMouseDown={e=>e.stopPropagation()}><div className="commandSearch"><Search size={19}/><input id="tickmint-command-search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search pages and actions…"/><kbd>Esc</kbd></div><div className="commandResults">{filtered.map(({id,label,hint,icon:Icon,view,action})=><button key={id} className={view===currentView?'current':''} onClick={()=>action?action():view&&onNavigate(view)}><span className="commandIcon"><Icon size={18}/></span><span><b>{label}</b><small>{hint}</small></span>{view===currentView&&<span className="currentBadge">Current</span>}</button>)}{!filtered.length&&<div className="commandEmpty">No matching page or action.</div>}</div><div className="commandFooter"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Open</span></div></div></div>
+}
+
 function AuthScreen({mode,setMode,onBack,onDemo}:{mode:AuthMode;setMode:(m:AuthMode)=>void;onBack:()=>void;onDemo:()=>void}){
   const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [name,setName]=useState('');const [busy,setBusy]=useState(false);const [message,setMessage]=useState('');const [error,setError]=useState('');
   async function submit(){
@@ -282,12 +388,12 @@ function AuthScreen({mode,setMode,onBack,onDemo}:{mode:AuthMode;setMode:(m:AuthM
 function Landing({onDemo,onLogin}:{onDemo:()=>void;onLogin:()=>void}){return <div className="landing">
   <header className="landingNav"><div className="brand"><TickMintLogo/></div><nav><a href="#features">Features</a><a href="#how">How it works</a><a href="#free">Free</a></nav><div><button className="ghost" onClick={onLogin}>Login</button><button className="primarySm" onClick={onDemo}>View live demo</button></div></header>
   <section className="hero"><div><span className="pill">Built for daily trading discipline</span><h1>Turn every trade into a <em>better decision.</em></h1><p>Log bull and bear trades, understand capital growth, spot weak patterns and finish every trading day with a clear review.</p><div className="heroBtns"><button className="primaryLg" onClick={onDemo}>Start free <ChevronRight size={18}/></button><button className="secondaryLg" onClick={onDemo}>Explore the dashboard</button></div><div className="trust"><span>✓ Free in Phase 1</span><span>✓ No card required</span><span>✓ Your data stays in your browser</span></div></div><DashboardMock/></section>
-  <section id="features" className="section"><div className="sectionHead"><span className="eyebrow">THE DAILY TRADING WORKSPACE</span><h2>More useful than a plain trade log</h2><p>TickMint turns trade records into visible progress and repeatable habits.</p></div><div className="featureGrid">{[['📈','Capital & equity','Track starting capital, current balance, ROI and drawdown.'],['🐂','Bull vs bear edge','See whether long or short positions actually suit you.'],['🧠','Behaviour review','Connect outcomes with discipline, emotion and rule-following.'],['📊','Instrument analytics','Compare Nifty, Crude Oil, Gold, Natural Gas and more.'],['🔥','Daily habit loop','Build review streaks and complete the day intentionally.'],['📅','Trading calendar','Spot green days, red days and missing journal entries.']].map(x=><div className="feature" key={x[1]}><div>{x[0]}</div><h3>{x[1]}</h3><p>{x[2]}</p></div>)}</div></section>
+  <section id="features" className="section"><div className="sectionHead"><span className="eyebrow">THE DAILY TRADING WORKSPACE</span><h2>More useful than a plain trade log</h2><p>TickMint turns trade records into visible progress and repeatable habits.</p></div><div className="featureGrid">{[[CircleDollarSign,'Capital & equity','Track starting capital, current balance, ROI and drawdown.'],[TrendingUp,'Bull vs bear edge','See whether long or short positions actually suit you.'],[Brain,'Behaviour review','Connect outcomes with discipline, emotion and rule-following.'],[BarChart3,'Instrument analytics','Compare Nifty, Crude Oil, Gold, Natural Gas and more.'],[Zap,'Daily habit loop','Build review streaks and complete the day intentionally.'],[CalendarDays,'Trading calendar','Spot green days, red days and missing journal entries.']].map(([Icon,title,copy]:any)=><div className="feature" key={title}><div className="featureIcon"><Icon size={21}/></div><h3>{title}</h3><p>{copy}</p></div>)}</div></section>
   <section id="how" className="section alt"><div className="sectionHead"><span className="eyebrow">HOW IT WORKS</span><h2>Three minutes after every session</h2></div><div className="steps">{[['01','Log the trade','Add instrument, direction, prices, quantity, setup and emotion.'],['02','See the numbers','P&L, win rate, equity curve and instrument performance update instantly.'],['03','Finish the review','Capture what worked, what failed and what to avoid tomorrow.']].map(x=><div className="step" key={x[0]}><span>{x[0]}</span><h3>{x[1]}</h3><p>{x[2]}</p></div>)}</div></section>
   <section id="free" className="cta"><span className="pill">Phase 1 is completely free</span><h2>Build the habit before paying for intelligence.</h2><p>Create an account, log trades and analyse your performance without a subscription.</p><button className="primaryLg" onClick={onDemo}>Open the prototype</button></section><footer className="landingFooter"><div className="brand"><TickMintLogo/></div><p>Trading journal and performance analytics. Not investment advice.</p><div><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="mailto:support@example.com">Contact</a></div></footer>
 </div>}
 
-function DashboardMock(){return <div className="mock"><div className="mockTop"><span></span><span></span><span></span></div><div className="mockBody"><div className="mockSide"></div><div className="mockMain"><div className="mockCards"><div><small>Net P&L</small><b className="green">+₹15,305</b></div><div><small>Win rate</small><b>70%</b></div><div><small>Capital</small><b>₹1.35L</b></div></div><div className="mockChart"><svg viewBox="0 0 500 160"><path d="M0 140 C70 120 80 100 130 105 S210 55 270 75 S350 20 500 28" fill="none" stroke="#10b981" strokeWidth="5"/><path d="M0 140 C70 120 80 100 130 105 S210 55 270 75 S350 20 500 28 L500 160 L0 160Z" fill="url(#g)" opacity=".35"/><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#10b981"/><stop offset="1" stopColor="#fff"/></linearGradient></defs></svg></div><div className="mockSplit"><div className="bullCard">🐂 Bull edge<br/><b>74% win rate</b></div><div className="bearCard">🐻 Bear edge<br/><b>61% win rate</b></div></div></div></div></div>}
+function DashboardMock(){return <div className="mock"><div className="mockTop"><span></span><span></span><span></span></div><div className="mockBody"><div className="mockSide"></div><div className="mockMain"><div className="mockCards"><div><small>Net P&L</small><b className="green">+₹15,305</b></div><div><small>Win rate</small><b>70%</b></div><div><small>Capital</small><b>₹1.35L</b></div></div><div className="mockChart"><svg viewBox="0 0 500 160"><path d="M0 140 C70 120 80 100 130 105 S210 55 270 75 S350 20 500 28" fill="none" stroke="#10b981" strokeWidth="5"/><path d="M0 140 C70 120 80 100 130 105 S210 55 270 75 S350 20 500 28 L500 160 L0 160Z" fill="url(#g)" opacity=".35"/><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#10b981"/><stop offset="1" stopColor="#fff"/></linearGradient></defs></svg></div><div className="mockSplit"><div className="bullCard"><TrendingUp size={15}/> Bull edge<br/><b>74% win rate</b></div><div className="bearCard"><TrendingDown size={15}/> Bear edge<br/><b>61% win rate</b></div></div></div></div></div>}
 
 function Dashboard({stats,equity,directionData,instrumentData,onLog,onNav}:any){return <>
   <div className="pageHead"><div><span className="eyebrow">GOOD EVENING, HARISH</span><h1>Finish the day with clarity.</h1><p>Your strongest edge is visible only when every trade is recorded.</p></div><button className="primaryLg" onClick={onLog}><Plus size={18}/> Log today’s trade</button></div>
@@ -441,7 +547,7 @@ function FeedbackView({demoMode,userId,email,onSent}:any){
 
 function ConsentBanner({onAccept,onDecline}:any){return <div className="consent"><div><b>Help improve the beta</b><p>Allow anonymous product events such as which screens are opened. Trade values, notes and personal data are never included.</p></div><div><button className="secondaryLg" onClick={onDecline}>No thanks</button><button className="primaryLg" onClick={onAccept}>Allow analytics</button></div></div>}
 
-function SettingsView({name,currency,startingCapital,demoMode,userId,accounts,trades,capitalEntries,reviews,onSaved}:any){
+function SettingsView({name,currency,startingCapital,demoMode,userId,accounts,trades,capitalEntries,reviews,theme,setTheme,onSaved}:any){
  const [saved,setSaved]=useState(false);
  const [busy,setBusy]=useState(false);
  const [form,setForm]=useState({name,currency,startingCapital});
@@ -476,7 +582,7 @@ function SettingsView({name,currency,startingCapital,demoMode,userId,accounts,tr
    downloadText(JSON.stringify(payload,null,2),`tickmint-backup-${new Date().toISOString().slice(0,10)}.json`,'application/json');
  }
 
- return <><div className="pageHead"><div><span className="eyebrow">COMMAND CENTER</span><h1>Settings</h1><p>Personalise your account, trading rules and cloud-data backup.</p></div><button className="primaryLg" disabled={busy} onClick={save}>{busy?'Saving…':saved?'Saved ✓':'Save changes'}</button></div><div className="settingsGrid"><section className="panel"><h3>Cloud profile</h3><label>Display name<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label>Currency<select value={form.currency} onChange={e=>setForm({...form,currency:e.target.value})}><option>INR</option><option>USD</option><option>AED</option></select></label><label>Starting capital<input type="number" value={form.startingCapital} onChange={e=>setForm({...form,startingCapital:Number(e.target.value)})}/></label><p>{demoMode?'Demo settings apply only during this session.':'These profile settings are saved securely in Supabase.'}</p></section><section className="panel"><h3>Trading guardrails</h3><label>Daily trade limit<input type="number" defaultValue="4"/></label><label>Maximum risk per trade (%)<input type="number" defaultValue="2"/></label><Toggle title="Daily journal reminder" text="Remind me before the trading day closes"/><Toggle title="Bull/Bear terminology" text="Show Bull/Long and Bear/Short labels"/><Toggle title="Risk alerts" text="Warn when a trade breaks my risk plan"/></section><section className="panel"><h3>Data backup</h3><p>Download a portable JSON copy of your profile, accounts, trades, capital ledger and daily reviews.</p><button className="secondaryLg wide" onClick={exportBackup}><Download size={16}/> Download full backup</button><small>This export contains your trading data. Store it securely.</small></section></div></>
+ return <><div className="pageHead"><div><span className="eyebrow">COMMAND CENTER</span><h1>Settings</h1><p>Personalise your account, trading rules and cloud-data backup.</p></div><button className="primaryLg" disabled={busy} onClick={save}>{busy?'Saving…':saved?'Saved ✓':'Save changes'}</button></div><div className="settingsGrid"><section className="panel"><h3>Cloud profile</h3><label>Display name<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label>Currency<select value={form.currency} onChange={e=>setForm({...form,currency:e.target.value})}><option>INR</option><option>USD</option><option>AED</option></select></label><label>Starting capital<input type="number" value={form.startingCapital} onChange={e=>setForm({...form,startingCapital:Number(e.target.value)})}/></label><p>{demoMode?'Demo settings apply only during this session.':'These profile settings are saved securely in Supabase.'}</p></section><section className="panel"><h3>Trading guardrails</h3><label>Daily trade limit<input type="number" defaultValue="4"/></label><label>Maximum risk per trade (%)<input type="number" defaultValue="2"/></label><Toggle title="Daily journal reminder" text="Remind me before the trading day closes"/><Toggle title="Bull/Bear terminology" text="Show Bull/Long and Bear/Short labels"/><Toggle title="Risk alerts" text="Warn when a trade breaks my risk plan"/></section><section className="panel appearancePanel"><h3>Appearance</h3><p>Choose the workspace atmosphere that best matches your trading environment.</p><div className="themeGrid">{([['system','System','Adapts to your device'],['light','Pearl','Bright institutional workspace'],['dark','Graphite','Balanced low-light mode'],['midnight','Midnight','Deep navy premium workspace'],['trading','Trading Dark','Maximum chart contrast']] as [ThemeMode,string,string][]).map(([id,label,copy])=><button key={id} className={theme===id?'themeCard selected':'themeCard'} onClick={()=>setTheme(id)}><span className={`themePreview ${id}`}><i></i><i></i><i></i></span><b>{label}</b><small>{copy}</small>{theme===id&&<Check size={15}/>}</button>)}</div></section><section className="panel"><h3>Data backup</h3><p>Download a portable JSON copy of your profile, accounts, trades, capital ledger and daily reviews.</p><button className="secondaryLg wide" onClick={exportBackup}><Download size={16}/> Download full backup</button><small>This export contains your trading data. Store it securely.</small></section></div></>
 }
 function Toggle({title,text}:any){const [on,setOn]=useState(true);return <div className="toggleRow"><div><b>{title}</b><small>{text}</small></div><button className={on?'toggle on':'toggle'} onClick={()=>setOn(!on)}><span></span></button></div>}
 
