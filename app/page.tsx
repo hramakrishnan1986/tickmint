@@ -87,10 +87,10 @@ export default function Home(){
     setSyncing(true);setError('');
     const [{data:profile},{data:accountRows,error:accountError},{data:rows,error:tradeError},{data:capitalRows,error:capitalError},{data:reviewRows,error:reviewError}]=await Promise.all([
       supabase.from('profiles').select('display_name,currency,starting_capital').eq('id',currentUser.id).maybeSingle(),
-      supabase.from('trading_accounts').select('*').order('is_default',{ascending:false}),
-      supabase.from('trades').select('*').order('trade_date',{ascending:false}),
-      supabase.from('capital_entries').select('*').order('entry_date',{ascending:false}),
-      supabase.from('daily_reviews').select('*').order('review_date',{ascending:false})
+      supabase.from('trading_accounts').select('*').eq('user_id',currentUser.id).order('is_default',{ascending:false}),
+      supabase.from('trades').select('*').eq('user_id',currentUser.id).order('trade_date',{ascending:false}),
+      supabase.from('capital_entries').select('*').eq('user_id',currentUser.id).order('entry_date',{ascending:false}),
+      supabase.from('daily_reviews').select('*').eq('user_id',currentUser.id).order('review_date',{ascending:false})
     ]);
     if(profile?.display_name)setProfileName(profile.display_name);
     if(profile?.currency)setCurrency(profile.currency);
@@ -100,8 +100,9 @@ export default function Home(){
     setAccounts((accountRows||[]).map(rowToAccount));
     setCapitalEntries((capitalRows||[]).map(rowToCapital));
     setReviews((reviewRows||[]).map(rowToReview));
-    const cloudError=accountError||tradeError||capitalError||reviewError;
-    if(cloudError)setError(cloudError.message);else setTrades((rows||[]).map(rowToTrade));
+    const cloudErrors=[accountError,tradeError,capitalError,reviewError].filter(Boolean);
+    if(cloudErrors.length)setError(cloudErrors.map((e:any)=>e.message).join(' · '));
+    else setTrades((rows||[]).map(rowToTrade));
     setSyncing(false);
   }
 
@@ -131,28 +132,28 @@ export default function Home(){
       if(uploadError){setError(uploadError.message);setSyncing(false);return}
       t.screenshotUrl=supabase.storage.from('trade-screenshots').getPublicUrl(path).data.publicUrl;
     }
-    const {data,error}=await supabase.from('trades').upsert(tradeToRow(t,user.id)).select().single();
+    const {data,error}=await supabase.from('trades').upsert(tradeToRow(t,user.id),{onConflict:'id'}).select().single();
     if(error)setError(error.message);else setTrades(prev=>editing?prev.map(x=>x.id===t.id?rowToTrade(data):x):[rowToTrade(data),...prev]);
     setSyncing(false);setModal(false);
   }
   async function deleteTrade(id:string){
     if(!confirm('Delete this trade permanently?'))return;
     if(demoMode){setTrades(prev=>prev.filter(t=>t.id!==id));return}
-    setSyncing(true);const {error}=await supabase.from('trades').delete().eq('id',id);if(error)setError(error.message);else setTrades(prev=>prev.filter(t=>t.id!==id));setSyncing(false)
+    setSyncing(true);const {error}=await supabase.from('trades').delete().eq('id',id).eq('user_id',user.id);if(error)setError(error.message);else setTrades(prev=>prev.filter(t=>t.id!==id));setSyncing(false)
   }
 
   async function saveAccount(account:TradingAccount){
     if(demoMode){setAccounts(prev=>prev.some(a=>a.id===account.id)?prev.map(a=>a.id===account.id?account:a):[...prev,account]);return}
     if(!user)return;setSyncing(true);
     if(account.isDefault)await supabase.from('trading_accounts').update({is_default:false}).eq('user_id',user.id);
-    const {data,error}=await supabase.from('trading_accounts').upsert(accountToRow(account,user.id)).select().single();
+    const {data,error}=await supabase.from('trading_accounts').upsert(accountToRow(account,user.id),{onConflict:'id'}).select().single();
     if(error)setError(error.message);else setAccounts(prev=>prev.some(a=>a.id===account.id)?prev.map(a=>a.id===account.id?rowToAccount(data):a):[...prev,rowToAccount(data)]);
     setSyncing(false)
   }
   async function deleteAccount(id:string){
     if(trades.some(t=>t.accountId===id)){alert('Move or delete trades linked to this account first.');return}
     if(demoMode){setAccounts(prev=>prev.filter(a=>a.id!==id));return}
-    const {error}=await supabase.from('trading_accounts').delete().eq('id',id);if(error)setError(error.message);else setAccounts(prev=>prev.filter(a=>a.id!==id))
+    const {error}=await supabase.from('trading_accounts').delete().eq('id',id).eq('user_id',user!.id);if(error)setError(error.message);else setAccounts(prev=>prev.filter(a=>a.id!==id))
   }
   async function saveCapital(entry:CapitalEntry){
     if(demoMode){setCapitalEntries(prev=>[entry,...prev]);return}
@@ -161,7 +162,7 @@ export default function Home(){
   }
   async function deleteCapital(id:string){
     if(demoMode){setCapitalEntries(prev=>prev.filter(x=>x.id!==id));return}
-    const {error}=await supabase.from('capital_entries').delete().eq('id',id);if(error)setError(error.message);else setCapitalEntries(prev=>prev.filter(x=>x.id!==id))
+    const {error}=await supabase.from('capital_entries').delete().eq('id',id).eq('user_id',user!.id);if(error)setError(error.message);else setCapitalEntries(prev=>prev.filter(x=>x.id!==id))
   }
 
   async function saveReview(review:DailyReview){
@@ -224,7 +225,7 @@ export default function Home(){
         {view==='reports'&&<Reports trades={trades} stats={stats} instrumentData={instrumentData}/>} 
         {view==='achievements'&&<Achievements trades={trades} discipline={stats.discipline} reviews={reviews}/>} 
         {view==='feedback'&&<FeedbackView demoMode={demoMode} userId={user?.id||''} email={user?.email||''} onSent={()=>notify('Thank you — feedback submitted.')} />}
-        {view==='settings'&&<SettingsView name={profileName} currency={currency} startingCapital={startingCapital} demoMode={demoMode} userId={user?.id||''} onSaved={(next:any)=>{setProfileName(next.name);setCurrency(next.currency);setStartingCapital(next.startingCapital)}}/>}
+        {view==='settings'&&<SettingsView name={profileName} currency={currency} startingCapital={startingCapital} demoMode={demoMode} userId={user?.id||''} accounts={accounts} trades={trades} capitalEntries={capitalEntries} reviews={reviews} onSaved={(next:any)=>{setProfileName(next.name);setCurrency(next.currency);setStartingCapital(next.startingCapital)}}/>}
       </div>
     </main>
     {!consent&&<ConsentBanner onAccept={()=>{localStorage.setItem('jiq_analytics_consent','yes');setConsent(true);notify('Anonymous product analytics enabled.')}} onDecline={()=>{localStorage.setItem('jiq_analytics_consent','no');setConsent(true)}}/>}
@@ -414,7 +415,43 @@ function FeedbackView({demoMode,userId,email,onSent}:any){
 
 function ConsentBanner({onAccept,onDecline}:any){return <div className="consent"><div><b>Help improve the beta</b><p>Allow anonymous product events such as which screens are opened. Trade values, notes and personal data are never included.</p></div><div><button className="secondaryLg" onClick={onDecline}>No thanks</button><button className="primaryLg" onClick={onAccept}>Allow analytics</button></div></div>}
 
-function SettingsView({name,currency,startingCapital,demoMode,userId,onSaved}:any){const [saved,setSaved]=useState(false);const [busy,setBusy]=useState(false);const [form,setForm]=useState({name,currency,startingCapital});async function save(){setBusy(true);if(!demoMode&&userId){const {error}=await supabase.from('profiles').upsert({id:userId,display_name:form.name,currency:form.currency,starting_capital:Number(form.startingCapital),updated_at:new Date().toISOString()});if(error){alert(error.message);setBusy(false);return}}onSaved({...form,startingCapital:Number(form.startingCapital)});setSaved(true);setBusy(false);setTimeout(()=>setSaved(false),2000)}return <><div className="pageHead"><div><span className="eyebrow">COMMAND CENTER</span><h1>Settings</h1><p>Personalise your account and trading rules.</p></div><button className="primaryLg" disabled={busy} onClick={save}>{busy?'Saving…':saved?'Saved ✓':'Save changes'}</button></div><div className="settingsGrid"><section className="panel"><h3>Cloud profile</h3><label>Display name<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label>Currency<select value={form.currency} onChange={e=>setForm({...form,currency:e.target.value})}><option>INR</option><option>USD</option><option>AED</option></select></label><label>Starting capital<input type="number" value={form.startingCapital} onChange={e=>setForm({...form,startingCapital:Number(e.target.value)})}/></label><p>{demoMode?'Demo settings apply only during this session.':'These profile settings are saved securely in Supabase.'}</p></section><section className="panel"><h3>Trading guardrails</h3><label>Daily trade limit<input type="number" defaultValue="4"/></label><label>Maximum risk per trade (%)<input type="number" defaultValue="2"/></label><Toggle title="Daily journal reminder" text="Remind me before the trading day closes"/><Toggle title="Bull/Bear terminology" text="Show Bull/Long and Bear/Short labels"/><Toggle title="Risk alerts" text="Warn when a trade breaks my risk plan"/></section></div></>}
+function SettingsView({name,currency,startingCapital,demoMode,userId,accounts,trades,capitalEntries,reviews,onSaved}:any){
+ const [saved,setSaved]=useState(false);
+ const [busy,setBusy]=useState(false);
+ const [form,setForm]=useState({name,currency,startingCapital});
+
+ async function save(){
+   setBusy(true);
+   if(!demoMode&&userId){
+     const {error}=await supabase.from('profiles').upsert({
+       id:userId,
+       display_name:form.name,
+       currency:form.currency,
+       starting_capital:Number(form.startingCapital),
+       updated_at:new Date().toISOString()
+     },{onConflict:'id'});
+     if(error){alert(error.message);setBusy(false);return}
+   }
+   onSaved({...form,startingCapital:Number(form.startingCapital)});
+   setSaved(true);setBusy(false);setTimeout(()=>setSaved(false),2000)
+ }
+
+ function exportBackup(){
+   const payload={
+     product:'TickMint',
+     schemaVersion:'phase-2a-v1',
+     exportedAt:new Date().toISOString(),
+     profile:{displayName:form.name,currency:form.currency,startingCapital:Number(form.startingCapital)},
+     tradingAccounts:accounts,
+     trades,
+     capitalEntries,
+     dailyReviews:reviews
+   };
+   downloadText(JSON.stringify(payload,null,2),`tickmint-backup-${new Date().toISOString().slice(0,10)}.json`,'application/json');
+ }
+
+ return <><div className="pageHead"><div><span className="eyebrow">COMMAND CENTER</span><h1>Settings</h1><p>Personalise your account, trading rules and cloud-data backup.</p></div><button className="primaryLg" disabled={busy} onClick={save}>{busy?'Saving…':saved?'Saved ✓':'Save changes'}</button></div><div className="settingsGrid"><section className="panel"><h3>Cloud profile</h3><label>Display name<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label>Currency<select value={form.currency} onChange={e=>setForm({...form,currency:e.target.value})}><option>INR</option><option>USD</option><option>AED</option></select></label><label>Starting capital<input type="number" value={form.startingCapital} onChange={e=>setForm({...form,startingCapital:Number(e.target.value)})}/></label><p>{demoMode?'Demo settings apply only during this session.':'These profile settings are saved securely in Supabase.'}</p></section><section className="panel"><h3>Trading guardrails</h3><label>Daily trade limit<input type="number" defaultValue="4"/></label><label>Maximum risk per trade (%)<input type="number" defaultValue="2"/></label><Toggle title="Daily journal reminder" text="Remind me before the trading day closes"/><Toggle title="Bull/Bear terminology" text="Show Bull/Long and Bear/Short labels"/><Toggle title="Risk alerts" text="Warn when a trade breaks my risk plan"/></section><section className="panel"><h3>Data backup</h3><p>Download a portable JSON copy of your profile, accounts, trades, capital ledger and daily reviews.</p><button className="secondaryLg wide" onClick={exportBackup}><Download size={16}/> Download full backup</button><small>This export contains your trading data. Store it securely.</small></section></div></>
+}
 function Toggle({title,text}:any){const [on,setOn]=useState(true);return <div className="toggleRow"><div><b>{title}</b><small>{text}</small></div><button className={on?'toggle on':'toggle'} onClick={()=>setOn(!on)}><span></span></button></div>}
 
 function TradeModal({trade,accounts,onClose,onSave}:{trade:Trade|null;accounts:TradingAccount[];onClose:()=>void;onSave:(t:Trade,file?:File|null)=>void}){
