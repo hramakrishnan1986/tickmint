@@ -6,6 +6,7 @@ import { Activity, Award, Brain, ClipboardCheck, Clock3, Gauge, HeartPulse, Shie
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, supabaseConfigured } from '../lib/supabase';
 import { sampleAccounts, sampleCapitalEntries, sampleTrades, sampleDailyReviews, CapitalEntry, Trade, TradingAccount, DailyReview } from '../lib/sampleData';
+import './phase-2a-stabilization.css';
 
 type View = 'landing'|'login'|'dashboard'|'journal'|'accounts'|'capital'|'analytics'|'psychology'|'review'|'calendar'|'expiry'|'reports'|'achievements'|'feedback'|'settings';
 type AuthMode = 'login'|'signup'|'forgot';
@@ -66,12 +67,18 @@ export default function Home(){
     let mounted=true;
     setConsent(localStorage.getItem('jiq_analytics_consent')!==null);
     async function boot(){
-      if(!supabaseConfigured){setLoading(false);return}
-      const {data}=await supabase.auth.getSession();
-      if(!mounted)return;
-      setSession(data.session);setUser(data.session?.user||null);
-      if(data.session){setView('dashboard');await loadCloudData(data.session.user)}
-      setLoading(false);
+      try{
+        if(!supabaseConfigured){setLoading(false);return}
+        const {data,error:sessionError}=await supabase.auth.getSession();
+        if(sessionError)throw sessionError;
+        if(!mounted)return;
+        setSession(data.session);setUser(data.session?.user||null);
+        if(data.session){setView('dashboard');await loadCloudData(data.session.user)}
+      }catch(error:any){
+        if(mounted)setError(error?.message||'Unable to initialise the secure workspace.');
+      }finally{
+        if(mounted)setLoading(false);
+      }
     }
     boot();
     const {data:listener}=supabase.auth.onAuthStateChange(async (_event,next)=>{
@@ -85,7 +92,8 @@ export default function Home(){
 
   async function loadCloudData(currentUser:User){
     setSyncing(true);setError('');
-    const [{data:profile},{data:accountRows,error:accountError},{data:rows,error:tradeError},{data:capitalRows,error:capitalError},{data:reviewRows,error:reviewError}]=await Promise.all([
+    try{
+    const [{data:profile,error:profileError},{data:accountRows,error:accountError},{data:rows,error:tradeError},{data:capitalRows,error:capitalError},{data:reviewRows,error:reviewError}]=await Promise.all([
       supabase.from('profiles').select('display_name,currency,starting_capital').eq('id',currentUser.id).maybeSingle(),
       supabase.from('trading_accounts').select('*').eq('user_id',currentUser.id).order('is_default',{ascending:false}),
       supabase.from('trades').select('*').eq('user_id',currentUser.id).order('trade_date',{ascending:false}),
@@ -100,13 +108,26 @@ export default function Home(){
     setAccounts((accountRows||[]).map(rowToAccount));
     setCapitalEntries((capitalRows||[]).map(rowToCapital));
     setReviews((reviewRows||[]).map(rowToReview));
-    const cloudErrors=[accountError,tradeError,capitalError,reviewError].filter(Boolean);
+    setTrades((rows||[]).map(rowToTrade));
+    const cloudErrors=[profileError,accountError,tradeError,capitalError,reviewError].filter(Boolean);
     if(cloudErrors.length)setError(cloudErrors.map((e:any)=>e.message).join(' · '));
-    else setTrades((rows||[]).map(rowToTrade));
-    setSyncing(false);
+    }catch(error:any){
+      setError(error?.message||'Unable to load your cloud workspace.');
+    }finally{
+      setSyncing(false);
+    }
   }
 
   function notify(message:string){setToast(message);window.setTimeout(()=>setToast(''),2600)}
+  function openTradeEntry(){
+    if(!demoMode&&!accounts.length){
+      setView('accounts');
+      notify('Create a trading account before logging your first trade.');
+      return;
+    }
+    setEditing(null);
+    setModal(true);
+  }
   function track(event:string,meta:Record<string,unknown>={}){
     if(typeof window==='undefined'||localStorage.getItem('jiq_analytics_consent')!=='yes')return;
     const rows=JSON.parse(localStorage.getItem('jiq_product_events')||'[]');
@@ -153,7 +174,7 @@ export default function Home(){
   async function deleteAccount(id:string){
     if(trades.some(t=>t.accountId===id)){alert('Move or delete trades linked to this account first.');return}
     if(demoMode){setAccounts(prev=>prev.filter(a=>a.id!==id));return}
-    const {error}=await supabase.from('trading_accounts').delete().eq('id',id).eq('user_id',user!.id);if(error)setError(error.message);else setAccounts(prev=>prev.filter(a=>a.id!==id))
+    const {error}=await user?supabase.from('trading_accounts').delete().eq('id',id).eq('user_id',user.id):Promise.resolve({error:new Error('Your session has expired. Please sign in again.')}) as any;if(error)setError(error.message);else setAccounts(prev=>prev.filter(a=>a.id!==id))
   }
   async function saveCapital(entry:CapitalEntry){
     if(demoMode){setCapitalEntries(prev=>[entry,...prev]);return}
@@ -162,7 +183,7 @@ export default function Home(){
   }
   async function deleteCapital(id:string){
     if(demoMode){setCapitalEntries(prev=>prev.filter(x=>x.id!==id));return}
-    const {error}=await supabase.from('capital_entries').delete().eq('id',id).eq('user_id',user!.id);if(error)setError(error.message);else setCapitalEntries(prev=>prev.filter(x=>x.id!==id))
+    const {error}=await user?supabase.from('capital_entries').delete().eq('id',id).eq('user_id',user.id):Promise.resolve({error:new Error('Your session has expired. Please sign in again.')}) as any;if(error)setError(error.message);else setCapitalEntries(prev=>prev.filter(x=>x.id!==id))
   }
 
   async function saveReview(review:DailyReview){
@@ -189,20 +210,25 @@ export default function Home(){
   if(view==='landing')return <Landing onDemo={openDemo} onLogin={()=>{setAuthMode('login');setView('login')}}/>;
   if(view==='login')return <AuthScreen mode={authMode} setMode={setAuthMode} onBack={()=>setView('landing')} onDemo={openDemo}/>;
 
-  const nav=[['dashboard','Dashboard',LayoutDashboard],['journal','Trade Journal',BookOpen],['accounts','Trading Accounts',CircleDollarSign],['capital','Capital Ledger',Activity],['analytics','Analytics',BarChart3],['psychology','Psychology',Brain],['review','Daily Review',ClipboardCheck],['calendar','Calendar',CalendarDays],['expiry','Expiry Calendar',Clock3],['reports','Reports',Download],['achievements','Achievements',Award],['feedback','Feedback & Help',LifeBuoy],['settings','Settings',Settings]] as const;
+  const nav=[['dashboard','Dashboard',LayoutDashboard],['journal','Trade Journal',BookOpen],['accounts','Trading Accounts',CircleDollarSign],['capital','Capital Ledger',Activity],['analytics','Analytics',BarChart3],['psychology','Psychology',Brain],['review','Daily Review',ClipboardCheck],['calendar','Calendar',CalendarDays],['expiry','Expiry Calendar',Clock3],['reports','Reports',FileText],['achievements','Achievements',Award],['feedback','Feedback & Help',LifeBuoy],['settings','Settings',Settings]] as const;
+  const navGroups=[
+    {label:'Workspace',items:nav.slice(0,4)},
+    {label:'Intelligence',items:nav.slice(4,9)},
+    {label:'Management',items:nav.slice(9)}
+  ] as const;
   return <div className="appShell">
     <aside className={menu?'sidebar open':'sidebar'}>
       <div className="brand"><TickMintLogo/><small>Trading performance OS</small></div>
-      <button className="newTrade" onClick={()=>{setEditing(null);setModal(true)}}><Plus size={18}/> Log a trade</button>
-      <nav>{nav.map(([id,label,Icon])=><button key={id} className={view===id?'nav active':'nav'} onClick={()=>{setView(id);setMenu(false);track('view_opened',{view:id})}}><Icon size={18}/>{label}</button>)}</nav>
-      <div className="sidebarFoot"><div className="avatar">{profileName.charAt(0).toUpperCase()}</div><div><b>{profileName}</b><small>{demoMode?'Demo account':'Cloud account'}</small></div><button title="Logout" onClick={logout}><LogOut size={16}/></button></div>
+      <button className="newTrade" onClick={openTradeEntry}><Plus size={18}/> Log a trade</button>
+      <nav className="navGroups">{navGroups.map(group=><div className="navGroup" key={group.label}><span className="navLabel">{group.label}</span>{group.items.map(([id,label,Icon])=><button key={id} className={view===id?'nav active':'nav'} onClick={()=>{setView(id);setMenu(false);track('view_opened',{view:id})}}><Icon size={18} strokeWidth={1.8}/><span>{label}</span></button>)}</div>)}</nav>
+      <div className="sidebarFoot"><div className="avatar">{profileName.charAt(0).toUpperCase()}</div><div><b>{profileName}</b><small><i className={demoMode?'statusDot demo':'statusDot'}></i>{demoMode?'Demo workspace':'Cloud secured'}</small></div><button aria-label="Sign out" title="Sign out" onClick={logout}><LogOut size={16}/></button></div>
     </aside>
     <main className="main">
-      <header className="topbar"><button className="menuBtn" onClick={()=>setMenu(!menu)}><Menu/></button><div><span className="crumb">Workspace /</span> <b>{nav.find(n=>n[0]===view)?.[1]}</b></div><div className="topActions"><span className={`syncState ${syncing?'busy':'ok'}`}>{syncing?'Syncing…':demoMode?'Demo data':'Cloud synced'}</span><button title="Notifications" onClick={()=>notify('You are all caught up.') }><Bell size={18}/></button><button className="primarySm" onClick={()=>{setEditing(null);setModal(true)}}><Plus size={16}/> Log trade</button></div></header>
+      <header className="topbar"><button className="menuBtn" onClick={()=>setMenu(!menu)}><Menu/></button><div><span className="crumb">Workspace /</span> <b>{nav.find(n=>n[0]===view)?.[1]}</b></div><div className="topActions"><span className={`syncState ${syncing?'busy':'ok'}`}>{syncing?'Syncing…':demoMode?'Demo data':'Cloud synced'}</span><button title="Notifications" onClick={()=>notify('You are all caught up.') }><Bell size={18}/></button><button className="primarySm" onClick={openTradeEntry}><Plus size={16}/> Log trade</button></div></header>
       <div className="content">
         {error&&<div className="errorBanner"><b>Unable to sync:</b> {error}<button onClick={()=>setError('')}>×</button></div>}
         {!supabaseConfigured&&!demoMode&&<div className="setupBanner">Add Supabase keys to <code>.env.local</code> to enable real accounts and cloud data.</div>}
-        {view==='dashboard'&&<Dashboard stats={stats} equity={equity} directionData={directionData} instrumentData={instrumentData} onLog={()=>setModal(true)} onNav={setView}/>} 
+        {view==='dashboard'&&<Dashboard stats={stats} equity={equity} directionData={directionData} instrumentData={instrumentData} onLog={openTradeEntry} onNav={setView}/>} 
         {view==='journal'&&<Journal
           trades={filtered}
           allTrades={trades}
@@ -235,7 +261,7 @@ export default function Home(){
 }
 
 
-function TickMintLogo({compact=false}:{compact?:boolean}){return <div className={`tickmintLogo ${compact?'compact':''}`}><img src={compact?'/tickmint-icon.svg':'/tickmint-logo.svg'} alt="TickMint"/></div>}
+function TickMintLogo({compact=false}:{compact?:boolean}){return <div className={`tickmintLogo ${compact?'compact':''}`}><img src={compact?'/tickmint-icon.svg':'/tickmint-logo.svg'} width={compact?42:190} height={compact?42:52} alt="TickMint trading journal"/></div>}
 function AuthScreen({mode,setMode,onBack,onDemo}:{mode:AuthMode;setMode:(m:AuthMode)=>void;onBack:()=>void;onDemo:()=>void}){
   const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [name,setName]=useState('');const [busy,setBusy]=useState(false);const [message,setMessage]=useState('');const [error,setError]=useState('');
   async function submit(){
@@ -278,7 +304,7 @@ function Journal({trades,allTrades,accounts,filter,setFilter,query,setQuery,onAd
   const accountName=(id:string)=>accounts.find((a:TradingAccount)=>a.id===id)?.name||'Unassigned';
   return <><div className="pageHead"><div><span className="eyebrow">BATTLE LOG</span><h1>Trade journal</h1><p>Every entry should explain the decision, risk and outcome.</p></div><button className="primaryLg" onClick={onAdd}><Plus size={18}/> Add trade</button></div>
   <div className="toolbar"><input placeholder="Search instrument, setup or note…" value={query} onChange={e=>setQuery(e.target.value)}/><select value={filter} onChange={e=>setFilter(e.target.value)}>{instruments.map(x=><option key={x}>{x}</option>)}</select><button className="secondaryLg" onClick={()=>exportCsv(allTrades)}><Download size={16}/> Export CSV</button></div>
-  <div className="tableWrap"><table><thead><tr><th>Date</th><th>Account</th><th>Market</th><th>Instrument</th><th>Direction</th><th>Gross</th><th>Charges</th><th>Net P&L</th><th>Rules</th><th></th></tr></thead><tbody>{trades.map((t:Trade)=><tr key={t.id}><td>{t.date}</td><td>{accountName(t.accountId)}</td><td>{t.market}</td><td><b>{t.instrument}</b>{t.optionType&&<small className="tableSub">{t.strikePrice} {t.optionType}</small>}</td><td><span className={`badge ${t.direction.toLowerCase()}`}>{t.direction==='Bull'?'🐂':'🐻'} {t.direction}</span></td><td>{money(t.grossPnl)}</td><td>{money(t.charges)}</td><td className={t.pnl>=0?'green':'red'}><b>{money(t.pnl)}</b></td><td>{t.followedRules?<span className="good">Followed</span>:<span className="bad">Broken</span>}</td><td><div className="rowActions">{t.screenshotUrl&&<button onClick={()=>window.open(t.screenshotUrl,'_blank')}>Chart</button>}<button onClick={()=>onEdit(t)}>Edit</button><button onClick={()=>confirm('Delete this trade?')&&onDelete(t.id)}>Delete</button></div></td></tr>)}</tbody></table>{!trades.length&&<div className="empty">No trades match the current filter.</div>}</div></>
+  <div className="tableWrap"><table><thead><tr><th>Date</th><th>Account</th><th>Market</th><th>Instrument</th><th>Direction</th><th>Gross</th><th>Charges</th><th>Net P&L</th><th>Rules</th><th></th></tr></thead><tbody>{trades.map((t:Trade)=><tr key={t.id}><td>{t.date}</td><td>{accountName(t.accountId)}</td><td>{t.market}</td><td><b>{t.instrument}</b>{t.optionType&&<small className="tableSub">{t.strikePrice} {t.optionType}</small>}</td><td><span className={`badge ${t.direction.toLowerCase()}`}>{t.direction==='Bull'?'🐂':'🐻'} {t.direction}</span></td><td>{money(t.grossPnl)}</td><td>{money(t.charges)}</td><td className={t.pnl>=0?'green':'red'}><b>{money(t.pnl)}</b></td><td>{t.followedRules?<span className="good">Followed</span>:<span className="bad">Broken</span>}</td><td><div className="rowActions">{t.screenshotUrl&&<button onClick={()=>window.open(t.screenshotUrl,'_blank')}>Chart</button>}<button onClick={()=>onEdit(t)}>Edit</button><button onClick={()=>confirm('Delete this trade?')&&onDelete(t.id)}>Delete</button></div></td></tr>)}</tbody></table>{!trades.length&&<div className="empty premiumEmpty"><BookOpen size={30}/><h3>{allTrades.length?'No matching trades':'Your journal is ready for its first trade'}</h3><p>{allTrades.length?'Adjust the search or instrument filter.':'Record a completed trade to begin measuring your edge, discipline and capital growth.'}</p>{!allTrades.length&&<button className="primaryLg" onClick={onAdd}><Plus size={17}/> Log first trade</button>}</div>}</div></>
 }
 
 
@@ -288,7 +314,7 @@ function AccountsView({accounts,trades,onSave,onDelete}:any){
   const totals=accounts.map((a:TradingAccount)=>{const list=trades.filter((t:Trade)=>t.accountId===a.id);return {...a,pnl:list.reduce((s:number,t:Trade)=>s+t.pnl,0),trades:list.length}});
   return <><div className="pageHead"><div><span className="eyebrow">MULTI-ACCOUNT WORKSPACE</span><h1>Trading accounts</h1><p>Track live, paper and broker accounts separately or as one portfolio.</p></div><button className="primaryLg" onClick={()=>{setEditing(null);setOpen(true)}}><Plus size={18}/> Add account</button></div>
   <div className="accountGrid">{totals.map((a:any)=><section className="accountCard" key={a.id}><div className="accountHead"><div><span className={`accountType ${a.accountType.toLowerCase()}`}>{a.accountType}</span><h3>{a.name}</h3><p>{a.broker}</p></div>{a.isDefault&&<span className="pill">Default</span>}</div><div className="accountMetrics"><div><small>Starting capital</small><b>{money(a.startingCapital)}</b></div><div><small>Net P&L</small><b className={a.pnl>=0?'green':'red'}>{money(a.pnl)}</b></div><div><small>Trades</small><b>{a.trades}</b></div></div><div className="accountActions"><button onClick={()=>{setEditing(a);setOpen(true)}}>Edit</button><button onClick={()=>confirm('Delete this account?')&&onDelete(a.id)}>Delete</button></div></section>)}</div>
-  {!accounts.length&&<div className="empty panel">Create your first trading account before logging a trade.</div>}
+  {!accounts.length&&<div className="empty panel premiumEmpty"><CircleDollarSign size={32}/><h3>Create your first trading account</h3><p>Separate live, paper and broker accounts while keeping portfolio analytics consolidated.</p><button className="primaryLg" onClick={()=>{setEditing(null);setOpen(true)}}><Plus size={17}/> Add first account</button></div>}
   {open&&<AccountModal account={editing} onClose={()=>setOpen(false)} onSave={(a:TradingAccount)=>{onSave(a);setOpen(false)}}/>}</>
 }
 function AccountModal({account,onClose,onSave}:any){
