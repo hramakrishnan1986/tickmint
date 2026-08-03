@@ -202,7 +202,18 @@ export default function Home(){
         {error&&<div className="errorBanner"><b>Unable to sync:</b> {error}<button onClick={()=>setError('')}>×</button></div>}
         {!supabaseConfigured&&!demoMode&&<div className="setupBanner">Add Supabase keys to <code>.env.local</code> to enable real accounts and cloud data.</div>}
         {view==='dashboard'&&<Dashboard stats={stats} equity={equity} directionData={directionData} instrumentData={instrumentData} onLog={()=>setModal(true)} onNav={setView}/>} 
-        {view==='journal'&&<Journal trades={filtered} allTrades={trades} accounts={accounts} filter={filter} setFilter={setFilter} query={query} setQuery={setQuery} onAdd={()=>{setEditing(null);setModal(true)}} onEdit={(t)=>{setEditing(t);setModal(true)}} onDelete={deleteTrade}/>} 
+        {view==='journal'&&<Journal
+          trades={filtered}
+          allTrades={trades}
+          accounts={accounts}
+          filter={filter}
+          setFilter={setFilter}
+          query={query}
+          setQuery={setQuery}
+          onAdd={()=>{setEditing(null);setModal(true)}}
+          onEdit={(t:Trade)=>{setEditing(t);setModal(true)}}
+          onDelete={deleteTrade}
+        />} 
         {view==='accounts'&&<AccountsView accounts={accounts} trades={trades} onSave={saveAccount} onDelete={deleteAccount}/>} 
         {view==='capital'&&<CapitalLedger entries={capitalEntries} accounts={accounts} onSave={saveCapital} onDelete={deleteCapital}/>} 
         {view==='analytics'&&<Analytics equity={equity} instrumentData={instrumentData} strategyData={strategyData} directionData={directionData} trades={trades} stats={stats}/>} 
