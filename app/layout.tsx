@@ -1,16 +1,16 @@
-import type { Metadata } from "next";
-import "./styles.css";
-import "./phase-2a-2-premium.css";
+import type { Metadata } from 'next';
+import './styles.css';
+import './phase-2a-2-premium.css';
 
 export const metadata: Metadata = {
   title: {
-    default: "TickMint",
-    template: "%s | TickMint",
+    default: 'TickMint',
+    template: '%s | TickMint',
   },
   description:
-    "A professional trading journal and performance analytics workspace.",
+    'A professional trading journal and performance analytics workspace.',
   icons: {
-    icon: "/tickmint-icon-premium.svg",
+    icon: '/tickmint-icon-premium.svg',
   },
 };
 

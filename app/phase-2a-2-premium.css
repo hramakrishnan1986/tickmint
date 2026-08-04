@@ -370,3 +370,20 @@ input:focus,select:focus,textarea:focus { border-color:#6f91bb!important; box-sh
   .content{padding:20px 14px 36px!important}
   .topbar{padding:0 14px!important}
 }
+
+
+/* Phase 2A.4–2A.9 release hardening */
+.offlineBanner{margin-bottom:14px;padding:11px 14px;color:#7a4d00;background:#fff8e7;border:1px solid #ecd9aa;border-radius:8px;font-size:13px}
+.errorBanner{display:flex;align-items:center;gap:8px}.errorActions{margin-left:auto;display:flex;align-items:center;gap:7px}
+.errorActions button{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid rgba(200,61,77,.24);border-radius:6px;color:inherit;background:transparent}
+.pageActions{display:flex;flex-wrap:wrap;gap:8px}
+.reportMetricGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0 20px}
+.reportMetricGrid>div{padding:18px;border:1px solid var(--tm-line);border-radius:10px;background:#fff}
+.reportMetricGrid span{display:block;margin-bottom:9px;color:#687383;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.reportMetricGrid b{font-size:23px}
+.releaseState{min-height:100dvh;display:grid;place-items:center;padding:24px;background:#f6f7f9}
+.releaseState section{width:min(560px,100%);padding:36px;border:1px solid #e2e6eb;border-radius:14px;background:#fff;text-align:center}
+.releaseLoader{width:34px;height:34px;margin:0 auto 18px;border:3px solid #dbe4ee;border-top-color:#274c77;border-radius:50%;animation:tickmintSpin .8s linear infinite}
+@keyframes tickmintSpin{to{transform:rotate(360deg)}}
+@media(max-width:760px){.reportMetricGrid{grid-template-columns:1fr 1fr}.pageActions{width:100%}.pageActions button{flex:1;justify-content:center}}
+@media print{.sidebar,.topbar,.newTrade,.consent,.toast{display:none!important}.main{margin:0!important}.content{max-width:none!important;padding:0!important}.panel,.kpi,.tableWrap{box-shadow:none!important;break-inside:avoid}}

@@ -1,0 +1,13 @@
+{
+  "release": "Phase 2A Release Candidate",
+  "phases": [
+    "2A.4",
+    "2A.5",
+    "2A.6",
+    "2A.7",
+    "2A.8",
+    "2A.9"
+  ],
+  "database_changes": true,
+  "requires_manual_qa": true
+}
