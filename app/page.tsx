@@ -208,34 +208,280 @@ export default function Home(){
     if(error)setError(error.message);else setTrades(prev=>editing?prev.map(x=>x.id===t.id?rowToTrade(data):x):[rowToTrade(data),...prev]);
     setSyncing(false);setModal(false);
   }
-  async function deleteTrade(id:string){
-    if(!confirm('Delete this trade permanently?'))return;
-    if(demoMode){setTrades(prev=>prev.filter(t=>t.id!==id));return}
-    setSyncing(true);const {error}=await supabase.from('trades').delete().eq('id',id).eq('user_id',user.id);if(error)setError(error.message);else setTrades(prev=>prev.filter(t=>t.id!==id));setSyncing(false)
+  async function deleteTrade(id: string) {
+  if (!confirm("Delete this trade permanently?")) {
+    return;
   }
 
-  async function saveAccount(account:TradingAccount){
-    if(demoMode){setAccounts(prev=>prev.some(a=>a.id===account.id)?prev.map(a=>a.id===account.id?account:a):[...prev,account]);return}
-    if(!user)return;setSyncing(true);
-    if(account.isDefault)await supabase.from('trading_accounts').update({is_default:false}).eq('user_id',user.id);
-    const {data,error}=await supabase.from('trading_accounts').upsert(accountToRow(account,user.id),{onConflict:'id'}).select().single();
-    if(error)setError(error.message);else setAccounts(prev=>prev.some(a=>a.id===account.id)?prev.map(a=>a.id===account.id?rowToAccount(data):a):[...prev,rowToAccount(data)]);
-    setSyncing(false)
+  if (demoMode) {
+    setTrades((previous) =>
+      previous.filter((trade) => trade.id !== id)
+    );
+    return;
   }
-  async function deleteAccount(id:string){
-    if(trades.some(t=>t.accountId===id)){alert('Move or delete trades linked to this account first.');return}
-    if(demoMode){setAccounts(prev=>prev.filter(a=>a.id!==id));return}
-    const {error}=await user?supabase.from('trading_accounts').delete().eq('id',id).eq('user_id',user.id):Promise.resolve({error:new Error('Your session has expired. Please sign in again.')}) as any;if(error)setError(error.message);else setAccounts(prev=>prev.filter(a=>a.id!==id))
+
+  if (!user) {
+    setError("Your session has expired. Please sign in again.");
+    return;
   }
-  async function saveCapital(entry:CapitalEntry){
-    if(demoMode){setCapitalEntries(prev=>[entry,...prev]);return}
-    if(!user)return;const {data,error}=await supabase.from('capital_entries').insert({id:entry.id,user_id:user.id,account_id:entry.accountId||null,entry_date:entry.date,entry_type:entry.type,amount:entry.amount,note:entry.note}).select().single();
-    if(error)setError(error.message);else setCapitalEntries(prev=>[rowToCapital(data),...prev])
+
+  setSyncing(true);
+  setError("");
+
+  try {
+    const { error } = await supabase
+      .from("trades")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      throw error;
+    }
+
+    setTrades((previous) =>
+      previous.filter((trade) => trade.id !== id)
+    );
+
+    notify("Trade deleted.");
+  } catch (error: unknown) {
+    setError(
+      error instanceof Error
+        ? error.message
+        : "Unable to delete the trade."
+    );
+  } finally {
+    setSyncing(false);
   }
-  async function deleteCapital(id:string){
-    if(demoMode){setCapitalEntries(prev=>prev.filter(x=>x.id!==id));return}
-    const {error}=await user?supabase.from('capital_entries').delete().eq('id',id).eq('user_id',user.id):Promise.resolve({error:new Error('Your session has expired. Please sign in again.')}) as any;if(error)setError(error.message);else setCapitalEntries(prev=>prev.filter(x=>x.id!==id))
+}
+
+async function saveAccount(account: TradingAccount) {
+  if (demoMode) {
+    setAccounts((previous) =>
+      previous.some((item) => item.id === account.id)
+        ? previous.map((item) =>
+            item.id === account.id ? account : item
+          )
+        : [account, ...previous]
+    );
+    return;
   }
+
+  if (!user) {
+    setError("Your session has expired. Please sign in again.");
+    return;
+  }
+
+  setSyncing(true);
+  setError("");
+
+  try {
+    if (account.isDefault) {
+      const { error: defaultError } = await supabase
+        .from("trading_accounts")
+        .update({ is_default: false })
+        .eq("user_id", user.id);
+
+      if (defaultError) {
+        throw defaultError;
+      }
+    }
+
+    const { data, error } = await supabase
+      .from("trading_accounts")
+      .upsert(accountToRow(account, user.id), {
+        onConflict: "id",
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    const savedAccount = rowToAccount(data);
+
+    setAccounts((previous) => {
+      let updated = previous.some(
+        (item) => item.id === savedAccount.id
+      )
+        ? previous.map((item) =>
+            item.id === savedAccount.id ? savedAccount : item
+          )
+        : [savedAccount, ...previous];
+
+      if (savedAccount.isDefault) {
+        updated = updated.map((item) => ({
+          ...item,
+          isDefault: item.id === savedAccount.id,
+        }));
+      }
+
+      return updated;
+    });
+
+    notify("Trading account saved.");
+  } catch (error: unknown) {
+    setError(
+      error instanceof Error
+        ? error.message
+        : "Unable to save the trading account."
+    );
+  } finally {
+    setSyncing(false);
+  }
+}
+
+async function deleteAccount(id: string) {
+  if (trades.some((trade) => trade.accountId === id)) {
+    alert(
+      "Move or delete trades linked to this account first."
+    );
+    return;
+  }
+
+  if (!confirm("Delete this trading account permanently?")) {
+    return;
+  }
+
+  if (demoMode) {
+    setAccounts((previous) =>
+      previous.filter((account) => account.id !== id)
+    );
+    return;
+  }
+
+  if (!user) {
+    setError("Your session has expired. Please sign in again.");
+    return;
+  }
+
+  setSyncing(true);
+  setError("");
+
+  try {
+    const { error } = await supabase
+      .from("trading_accounts")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      throw error;
+    }
+
+    setAccounts((previous) =>
+      previous.filter((account) => account.id !== id)
+    );
+
+    notify("Trading account deleted.");
+  } catch (error: unknown) {
+    setError(
+      error instanceof Error
+        ? error.message
+        : "Unable to delete the trading account."
+    );
+  } finally {
+    setSyncing(false);
+  }
+}
+
+async function saveCapital(entry: CapitalEntry) {
+  if (demoMode) {
+    setCapitalEntries((previous) => [entry, ...previous]);
+    return;
+  }
+
+  if (!user) {
+    setError("Your session has expired. Please sign in again.");
+    return;
+  }
+
+  setSyncing(true);
+  setError("");
+
+  try {
+    const { data, error } = await supabase
+      .from("capital_entries")
+      .insert({
+        id: entry.id,
+        user_id: user.id,
+        account_id: entry.accountId || null,
+        entry_date: entry.date,
+        entry_type: entry.type,
+        amount: entry.amount,
+        note: entry.note || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    setCapitalEntries((previous) => [
+      rowToCapital(data),
+      ...previous,
+    ]);
+
+    notify("Capital entry saved.");
+  } catch (error: unknown) {
+    setError(
+      error instanceof Error
+        ? error.message
+        : "Unable to save the capital entry."
+    );
+  } finally {
+    setSyncing(false);
+  }
+}
+
+async function deleteCapital(id: string) {
+  if (!confirm("Delete this capital entry permanently?")) {
+    return;
+  }
+
+  if (demoMode) {
+    setCapitalEntries((previous) =>
+      previous.filter((entry) => entry.id !== id)
+    );
+    return;
+  }
+
+  if (!user) {
+    setError("Your session has expired. Please sign in again.");
+    return;
+  }
+
+  setSyncing(true);
+  setError("");
+
+  try {
+    const { error } = await supabase
+      .from("capital_entries")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      throw error;
+    }
+
+    setCapitalEntries((previous) =>
+      previous.filter((entry) => entry.id !== id)
+    );
+
+    notify("Capital entry deleted.");
+  } catch (error: unknown) {
+    setError(
+      error instanceof Error
+        ? error.message
+        : "Unable to delete the capital entry."
+    );
+  } finally {
+    setSyncing(false);
+  }
+}
 
   async function saveReview(review:DailyReview){
     if(demoMode){setReviews(prev=>prev.some(r=>r.date===review.date)?prev.map(r=>r.date===review.date?review:r):[review,...prev]);return}
