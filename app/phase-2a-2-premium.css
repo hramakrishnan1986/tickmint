@@ -255,3 +255,118 @@ table tbody tr:hover td { background:var(--surface-2); }
   .sidebar,.sidebar.collapsed{width:min(88vw,314px);padding:23px 17px 18px}.sidebar.collapsed .logoWordmark,.sidebar.collapsed .navText,.sidebar.collapsed .navLabel,.sidebar.collapsed .sidebarProfileText,.sidebar.collapsed .newTrade span{display:initial}.sidebar.collapsed .nav{width:auto;justify-content:flex-start;margin:0 4px;padding:0 12px!important}.sidebar.collapsed .newTrade{width:auto;margin:3px 8px 20px;padding:0 16px!important}.collapseBtn{display:none}.topbar{min-height:63px;padding:0 13px;grid-template-columns:1fr auto}.breadcrumb .crumb,.topActions .syncState,.profileTrigger svg{display:none}.topActions{gap:6px}.topActions .primarySm{width:39px;padding:0!important;font-size:0}.topActions .primarySm svg{margin:0}.content{padding:20px 13px 34px}.themeGrid{grid-template-columns:1fr 1fr}.modal.wide,.modal.compact{width:100vw!important;min-height:100dvh;max-height:100dvh!important;border-radius:0!important}.commandOverlay{padding-top:8vh}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
+
+
+/* ========================================================================== */
+/* TickMint Phase 2A.2 Premium Visual System                                  */
+/* ========================================================================== */
+
+:root {
+  --tm-bg: #f6f7f9;
+  --tm-surface: #ffffff;
+  --tm-surface-muted: #f2f4f7;
+  --tm-sidebar: #111722;
+  --tm-sidebar-hover: #182131;
+  --tm-ink: #111827;
+  --tm-copy: #586273;
+  --tm-muted: #8993a2;
+  --tm-line: #e2e6eb;
+  --tm-line-strong: #cfd6df;
+  --tm-primary: #274c77;
+  --tm-primary-hover: #1f3f64;
+  --tm-accent: #376fc0;
+  --tm-accent-soft: #edf3fa;
+  --tm-profit: #0d8f68;
+  --tm-profit-soft: #edf8f4;
+  --tm-loss: #c83d4d;
+  --tm-loss-soft: #fbf0f2;
+}
+
+body {
+  background: var(--tm-bg) !important;
+  color: var(--tm-ink) !important;
+  font-family: Inter, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif !important;
+}
+
+.tickmintLogo { display:flex; align-items:center; flex-shrink:0; overflow:visible!important; }
+.tickmintLogo img { display:block; width:188px; height:auto; max-width:100%; object-fit:contain; object-position:left center; overflow:visible!important; }
+.tickmintLogo.compact img { width:42px; height:42px; object-position:center; }
+
+.landing { background:linear-gradient(180deg,#fff 0,#fff 42rem,#f6f7f9 42rem,#f6f7f9 100%)!important; }
+.landingNav { min-height:72px!important; padding:0 6vw!important; background:rgba(255,255,255,.96)!important; border-bottom:1px solid var(--tm-line)!important; backdrop-filter:blur(14px); }
+.landingNav .tickmintLogo img { width:176px; }
+.hero { min-height:650px!important; padding:92px 6vw 70px!important; gap:72px!important; }
+.hero h1 { max-width:680px; color:#101722!important; font-size:clamp(48px,5.6vw,78px)!important; font-weight:720!important; line-height:1.02!important; letter-spacing:-.064em!important; }
+.hero h1 span { color:var(--tm-primary)!important; background:none!important; -webkit-text-fill-color:initial!important; }
+.hero p { max-width:700px; color:#5b6574!important; font-size:18px!important; line-height:1.7!important; }
+.heroBadge,.eyebrow { color:var(--tm-primary)!important; background:var(--tm-accent-soft)!important; border:1px solid #dbe6f3!important; border-radius:999px!important; font-size:10px!important; font-weight:760!important; letter-spacing:.12em!important; text-transform:uppercase; }
+.primaryLg,.primarySm,.newTrade { color:#fff!important; background:var(--tm-primary)!important; border:1px solid var(--tm-primary)!important; border-radius:8px!important; box-shadow:none!important; }
+.primaryLg:hover,.primarySm:hover,.newTrade:hover { background:var(--tm-primary-hover)!important; border-color:var(--tm-primary-hover)!important; transform:none!important; filter:none!important; }
+.secondaryLg { color:#2f3947!important; background:#fff!important; border:1px solid var(--tm-line-strong)!important; border-radius:8px!important; box-shadow:none!important; }
+.heroPreview { border:1px solid #dfe5ec!important; border-radius:18px!important; background:#fff!important; box-shadow:0 28px 60px rgba(23,35,51,.12)!important; transform:none!important; }
+.featureSection,.stepsSection { padding:96px 6vw!important; }
+.featureSection h2,.stepsSection h2,.ctaSection h2 { color:#111722!important; font-size:clamp(34px,4vw,54px)!important; font-weight:700!important; letter-spacing:-.052em!important; }
+.feature { min-height:210px; padding:26px!important; border:1px solid var(--tm-line)!important; border-radius:12px!important; background:#fff!important; box-shadow:none!important; }
+.feature:hover { transform:translateY(-2px)!important; box-shadow:0 8px 24px rgba(16,24,40,.055)!important; }
+.featureIcon { width:40px!important; height:40px!important; color:var(--tm-primary)!important; background:var(--tm-accent-soft)!important; border:1px solid #dce6f2!important; border-radius:8px!important; }
+.step { min-height:190px; padding:28px!important; border:1px solid var(--tm-line)!important; border-radius:12px!important; background:#fff!important; box-shadow:none!important; }
+.step>span { color:#b4becb!important; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:30px!important; font-weight:600!important; }
+.ctaSection { background:#eef2f6!important; border-top:1px solid var(--tm-line); border-bottom:1px solid var(--tm-line); }
+.landingFooter { background:#fff!important; border-top:1px solid var(--tm-line)!important; }
+
+.auth { background:#f3f5f7!important; }
+.authCard { border:1px solid var(--tm-line)!important; border-radius:14px!important; background:#fff!important; box-shadow:0 24px 60px rgba(20,31,46,.11)!important; }
+.authCard .tickmintLogo img { width:192px; }
+
+.appShell { background:var(--tm-bg)!important; }
+.sidebar { width:270px!important; padding:22px 16px 18px!important; background:var(--tm-sidebar)!important; border-right:1px solid #222c3a!important; box-shadow:none!important; }
+.sidebar>.brand { min-height:66px; padding:0 10px 18px!important; }
+.sidebar .tickmintLogo img { width:178px; filter:none!important; }
+.sidebar>.brand small { color:#778397!important; font-size:9px!important; font-weight:700!important; letter-spacing:.15em!important; }
+.newTrade { min-height:44px!important; margin:4px 7px 22px!important; border-radius:8px!important; }
+.navGroups { gap:22px!important; }
+.navLabel { padding:0 12px 6px!important; color:#657287!important; font-size:9px!important; font-weight:760!important; letter-spacing:.15em!important; }
+.nav { min-height:40px!important; margin:0 3px!important; padding:0 11px!important; color:#93a0b4!important; border-radius:7px!important; font-size:13px!important; font-weight:590!important; }
+.nav:hover { color:#fff!important; background:var(--tm-sidebar-hover)!important; }
+.nav.active { color:#fff!important; background:#1b2534!important; border:1px solid #2a3647!important; box-shadow:inset 2px 0 0 #5f8fd1!important; }
+.sidebarFoot { border-top:1px solid #2b3544!important; }
+.sidebarFoot .avatar { background:#2c5f8a!important; box-shadow:none!important; }
+
+.topbar { min-height:68px!important; padding:0 24px!important; background:rgba(255,255,255,.96)!important; border-bottom:1px solid var(--tm-line)!important; box-shadow:none!important; backdrop-filter:blur(12px); }
+.commandTrigger,.iconButton,.profileTrigger,.menuBtn { border:1px solid var(--tm-line)!important; border-radius:8px!important; background:#fff!important; box-shadow:none!important; }
+.syncState { color:var(--tm-profit)!important; background:var(--tm-profit-soft)!important; border:1px solid #d7eee6!important; }
+
+.content { max-width:1600px!important; padding:34px 30px 54px!important; }
+.pageHead h1 { font-size:clamp(32px,3.4vw,46px)!important; font-weight:690!important; letter-spacing:-.052em!important; }
+.pageHead p { color:#687383!important; font-size:15px!important; }
+.panel,.kpi,.accountCard,.reportHero { border:1px solid var(--tm-line)!important; border-radius:12px!important; background:#fff!important; box-shadow:none!important; }
+.panel { padding:22px!important; }
+.kpi { min-height:132px!important; padding:20px!important; }
+.kpi::before { display:none!important; }
+.kpi span { color:#687383!important; font-size:11px!important; font-weight:620!important; text-transform:uppercase; letter-spacing:.06em; }
+.kpi h2 { margin:10px 0 6px!important; color:#101722!important; font-family:Inter,system-ui,sans-serif!important; font-size:clamp(27px,2vw,34px)!important; font-weight:720!important; letter-spacing:-.05em!important; }
+.kpiIcon { width:36px!important; height:36px!important; color:var(--tm-primary)!important; background:var(--tm-accent-soft)!important; border:1px solid #dce6f2!important; border-radius:8px!important; }
+
+.tableWrap { border:1px solid var(--tm-line)!important; border-radius:12px!important; background:#fff!important; box-shadow:none!important; }
+table thead th { color:#6d7785!important; background:#f7f8fa!important; border-bottom:1px solid var(--tm-line)!important; font-size:9px!important; font-weight:750!important; }
+table tbody td { border-bottom:1px solid #edf0f3!important; font-size:12.5px!important; }
+table tbody tr:hover td { background:#fafbfc!important; }
+
+input,select,textarea { color:var(--tm-ink)!important; border:1px solid var(--tm-line-strong)!important; border-radius:8px!important; background:#fff!important; box-shadow:none!important; }
+input:focus,select:focus,textarea:focus { border-color:#6f91bb!important; box-shadow:0 0 0 3px rgba(55,111,192,.10)!important; }
+
+.overlay { background:rgba(11,17,26,.62)!important; backdrop-filter:blur(8px); }
+.modal { border:1px solid var(--tm-line)!important; border-radius:14px!important; background:#fff!important; box-shadow:0 26px 74px rgba(8,15,26,.20)!important; }
+.errorBanner { color:var(--tm-loss)!important; background:var(--tm-loss-soft)!important; border:1px solid #efdadd!important; }
+.good,.green { color:var(--tm-profit)!important; }
+.bad,.red { color:var(--tm-loss)!important; }
+
+.chart .recharts-cartesian-grid-horizontal line,.chart .recharts-cartesian-grid-vertical line { stroke:#e9edf1!important; }
+.recharts-text { fill:#7b8694!important; font-size:10px!important; }
+
+@media(max-width:760px){
+  .hero{min-height:auto!important;padding-top:56px!important}
+  .hero h1{font-size:44px!important}
+  .content{padding:20px 14px 36px!important}
+  .topbar{padding:0 14px!important}
+}
